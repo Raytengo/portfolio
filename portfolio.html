@@ -1,0 +1,2356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raymond Tseng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DotGothic16&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<style>
+/* ── RESET & VARS ── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#FAFAFA;
+  --fg:#0D0D0D;
+  --accent:#FF4500;
+  --muted:#666666;
+  --surface:#F0F0EE;
+  --border:rgba(0,0,0,0.09);
+  --f:'Space Grotesk',system-ui,sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);overflow-x:hidden}
+
+/* ── PAGE SYSTEM ── */
+.page{
+  display:none;
+  position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;
+  will-change:transform;
+}
+.page.active{display:block}
+.page.slide-in{
+  display:block;
+  animation:slideInFromRight .72s cubic-bezier(.16,1,.3,1) both;
+}
+.page.slide-out{
+  display:block;
+  animation:slideOutToLeft .72s cubic-bezier(.16,1,.3,1) both;
+  pointer-events:none;
+}
+@keyframes slideInFromRight{
+  from{transform:translateX(100%)}
+  to{transform:translateX(0)}
+}
+@keyframes slideOutToLeft{
+  from{transform:translateX(0)}
+  to{transform:translateX(-100%)}
+}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:68px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 5vw;
+  background:var(--fg);
+  border-bottom:none;
+}
+.nav-logo{font-size:1rem;font-weight:700;letter-spacing:.05em;color:var(--bg);text-decoration:none;cursor:pointer}
+.nav-logo span{color:var(--accent)}
+.nav-links{display:flex;gap:2.5rem;list-style:none}
+.nav-links a{
+  font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;cursor:pointer;
+}
+.nav-links a:hover,.nav-links a.nav-active{color:var(--accent)}
+
+/* ── HERO ── */
+#hero{
+  height:100vh;
+  display:grid;grid-template-columns:3fr 2fr;
+  padding-top:68px;overflow:hidden;
+  scroll-snap-align:start;
+  background:#EDEAE2;
+}
+.hero-left{
+  display:flex;flex-direction:column;justify-content:center;
+  padding:6vw 3vw 6vw 5vw;
+}
+.hero-eyebrow{
+  font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:1.8rem;
+  opacity:0;animation:riseIn .8s cubic-bezier(.16,1,.3,1) .15s both;
+}
+.hero-name{
+  font-size:clamp(3.4rem,7.8vw,8.4rem);font-weight:700;
+  line-height:.88;letter-spacing:-.04em;text-transform:uppercase;
+  margin-bottom:2rem;
+  opacity:0;animation:riseIn .9s cubic-bezier(.16,1,.3,1) .3s both;
+}
+.hero-name em{display:block;color:var(--accent);font-style:normal}
+.hero-badges{
+  display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:2.5rem;
+  opacity:0;animation:riseIn .8s cubic-bezier(.16,1,.3,1) .5s both;
+}
+.badge{
+  font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.28rem .75rem;border:1px solid var(--border);color:var(--muted);
+}
+.badge.hot{background:var(--accent);border-color:var(--accent);color:#fff}
+.hero-cta{
+  display:flex;gap:1rem;
+  opacity:0;animation:riseIn .8s cubic-bezier(.16,1,.3,1) .66s both;
+}
+.btn{
+  padding:.8rem 2rem;font-family:var(--f);font-size:.72rem;
+  letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  text-decoration:none;display:inline-block;transition:all .2s;
+  cursor:pointer;border:none;
+}
+.btn-filled{background:var(--fg);color:var(--bg)}
+.btn-filled:hover{background:var(--accent)}
+.btn-outline{border:1.5px solid var(--fg);color:var(--fg);background:transparent}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.hero-right{position:relative;background:#EDEAE2;overflow:hidden}
+#chess-canvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+  cursor:grab;
+}
+#chess-canvas:active{cursor:grabbing;}
+
+/* ── MARQUEE ── */
+.marquee-wrap{background:var(--accent);overflow:hidden;padding:.85rem 0;margin-top:2px}
+.marquee-track{
+  display:flex;white-space:nowrap;
+  animation:marqueeAnim 24s linear infinite;
+}
+.marquee-item{
+  font-size:.7rem;letter-spacing:.22em;font-weight:600;
+  text-transform:uppercase;color:#fff;padding:0 1.5rem;flex-shrink:0;
+}
+.marquee-sep{color:rgba(255,255,255,.4);padding:0 .5rem}
+
+/* ── SECTION BASE ── */
+.si{max-width:1280px;margin:0 auto;padding:clamp(2rem,4.5vh,4.5rem) 5vw}
+.s-label{
+  font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:.7rem;
+}
+.s-title{
+  font-size:clamp(2rem,4vw,3.6rem);font-weight:700;
+  letter-spacing:-.035em;line-height:.95;text-transform:uppercase;
+  margin-bottom:0;
+}
+
+/* ── ABOUT ── */
+#about{border-top:none;background:#EDEAE2;height:100vh;display:flex;align-items:center;padding-top:68px;scroll-snap-align:start;}
+#about .si{padding:0 5vw;width:100%}
+.about-layout{display:grid;grid-template-columns:1fr 1.4fr;gap:5rem;align-items:center}
+.about-left-col{display:flex;flex-direction:column;justify-content:center}
+.bio-text{font-size:1rem;line-height:1.72;color:#444;margin-bottom:.9rem}
+.callout{
+  background:var(--fg);color:var(--bg);padding:1.2rem 1.8rem;margin-top:1.4rem;
+}
+.callout-label{
+  font-size:.58rem;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:.35rem;
+}
+.callout-text{font-size:.82rem;line-height:1.55;color:rgba(250,250,250,.82)}
+
+/* ── EXPERIENCE ── */
+#experience{border-top:none;background:#EDEAE2;height:100vh;display:flex;align-items:flex-start;padding-top:calc(68px + 16vh);scroll-snap-align:start;}
+#experience .si{padding:0 5vw;width:100%}
+.exp-layout{display:grid;grid-template-columns:1.2fr 1fr;gap:4rem;align-items:start}
+.experience-heading{
+  margin-left:clamp(1.25rem,3.5vw,3.5rem);
+}
+.experience-title{
+  margin-bottom:0;
+  font-weight:700;
+}
+.foosball-block{
+  width:100%;height:240px;background:transparent;
+  margin-top:1.8rem;overflow:hidden;
+}
+#foosball-canvas{
+  width:100%;height:100%;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+}
+.exp-label{
+  font-size:.62rem;letter-spacing:.25em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.9rem;
+}
+.exp-item{padding:1.08rem 0;border-top:1px solid rgba(0,0,0,.1)}
+.exp-item:last-child{border-bottom:1px solid rgba(0,0,0,.1)}
+.exp-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.2rem}
+.exp-role{font-size:.9rem;font-weight:600}
+.exp-period{font-size:.63rem;letter-spacing:.07em;color:var(--muted)}
+.exp-org{font-size:.77rem;color:var(--accent);margin-bottom:.25rem;font-weight:500}
+.exp-desc{font-size:.75rem;line-height:1.66;color:var(--muted)}
+
+/* ── WORK ── */
+#work{border-top:none;background:#EDEAE2;min-height:100vh;display:flex;align-items:flex-start;padding-top:68px;padding-bottom:4vh;}
+#work .si{padding:clamp(2rem,4.5vh,4.5rem) 5vw 2rem;width:100%}
+
+.work-header-row{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  margin-bottom:1.8rem;padding-bottom:2.4rem;
+  border-bottom:1px solid rgba(0,0,0,0.13);
+  position:relative;
+}
+.work-header-row::after{
+  content:'';position:absolute;bottom:-1px;left:0;
+  width:4rem;height:2px;background:var(--accent);
+}
+.work-count{
+  font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;white-space:nowrap;
+  padding-bottom:.25rem;
+}
+
+.work-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:0;
+  border:1px solid rgba(0,0,0,0.11);
+}
+
+.work-card{
+  padding:1.6rem 1.8rem 1.4rem;
+  border-right:1px solid rgba(0,0,0,0.11);
+  display:flex;flex-direction:column;
+  cursor:default;
+  position:relative;
+  transition:background .25s ease, box-shadow .25s ease;
+  overflow:hidden;
+}
+.work-card:last-child{border-right:none}
+
+.work-card::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;
+  height:2px;background:transparent;
+  transition:background .25s ease;
+}
+.work-card:hover::before{background:var(--accent)}
+.work-card:hover{background:rgba(255,255,255,0.45)}
+
+.work-card-top{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:1rem;
+}
+.work-num{
+  font-size:.55rem;letter-spacing:.22em;color:var(--accent);
+  font-weight:700;text-transform:uppercase;
+}
+.work-type-badge{
+  font-size:.5rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;
+  border:1px solid rgba(0,0,0,0.13);
+  padding:.18rem .55rem;
+  transition:border-color .25s, color .25s;
+}
+.work-card:hover .work-type-badge{border-color:rgba(0,0,0,0.22);color:var(--fg)}
+
+.work-title{
+  font-size:1.1rem;font-weight:700;
+  margin-bottom:.6rem;line-height:1.18;
+  letter-spacing:-.01em;
+}
+
+.work-divider{
+  width:1.8rem;height:1px;
+  background:rgba(0,0,0,0.18);
+  margin-bottom:.9rem;
+  transition:width .3s ease;
+}
+.work-card:hover .work-divider{width:3rem;background:var(--accent)}
+
+.work-desc{
+  font-size:.76rem;line-height:1.6;color:var(--muted);
+  margin-bottom:.9rem;flex:1;
+}
+
+.work-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.8rem}
+.work-tag{
+  font-size:.55rem;padding:.22rem .62rem;
+  background:rgba(0,0,0,0.055);
+  color:var(--muted);letter-spacing:.06em;text-transform:uppercase;
+  font-weight:600;
+  transition:background .2s, color .2s;
+}
+.work-card:hover .work-tag{background:rgba(0,0,0,0.08);color:var(--fg)}
+
+.work-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:auto;padding-top:.9rem;
+  border-top:1px solid rgba(0,0,0,0.08);
+}
+.work-link{
+  font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);text-decoration:none;font-weight:700;
+  display:inline-flex;align-items:center;gap:.35rem;
+  transition:gap .2s ease, opacity .2s;
+}
+.work-link:hover{gap:.55rem}
+.work-link-arrow{
+  font-size:.75rem;
+  transition:transform .2s ease;
+}
+.work-link:hover .work-link-arrow{transform:translate(2px,-2px)}
+
+.work-status{
+  font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;opacity:.7;
+}
+
+@media(max-width:900px){
+  .work-grid{grid-template-columns:1fr}
+  .work-card{border-right:none;border-bottom:1px solid rgba(0,0,0,0.11)}
+  .work-card:last-child{border-bottom:none}
+}
+
+/* ── PAPERS ── */
+#papers{border-top:none;background:#EDEAE2;min-height:100vh;display:flex;align-items:flex-start;padding-top:68px;}
+#papers .si{padding:clamp(2rem,4.5vh,4.5rem) 5vw 4rem;width:100%;display:flex;flex-direction:column;gap:0}
+
+.papers-header{margin-bottom:1.8rem;padding-bottom:2.4rem;border-bottom:1px solid var(--border)}
+.papers-list{display:grid;grid-template-columns:1fr 1fr;column-gap:4rem;row-gap:1.5rem;margin-top:0;max-width:1100px;margin:0 auto}
+
+.paper-card{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:10px;
+  transition:background .25s ease, transform .25s ease, box-shadow .25s ease;
+  overflow:hidden;
+}
+
+.paper-card::before{
+  content:'';
+  position:absolute;
+  left:0;right:0;top:0;
+  height:4px;
+  background:transparent;
+  transition:background .25s ease;
+  border-radius:10px 10px 0 0;
+  z-index:2;
+}
+.paper-card:hover::before{
+  background:var(--accent);
+}
+.paper-card:hover{
+  background:#fff;
+  transform:translateY(-4px);
+  box-shadow:0 12px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.paper-card-body{
+  padding:1rem 1.4rem 1rem 1.4rem;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:.5rem;
+  flex:1;
+}
+
+.paper-meta-row{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+}
+
+.paper-venue{
+  font-size:.62rem;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  font-weight:700;
+  color:var(--fg);
+}
+
+.paper-card.accepted .paper-venue{
+  color:var(--accent);
+}
+
+.sbadge{
+  font-size:.55rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  padding:.22rem .7rem;
+  font-weight:700;
+  flex-shrink:0;
+}
+.sbadge.ok{
+  background:var(--fg);
+  color:#EDEAE2;
+}
+.sbadge.rv{
+  border:1px solid rgba(0,0,0,0.18);
+  color:var(--muted);
+}
+
+.paper-content{flex:1}
+
+.paper-title{
+  font-size:.82rem;
+  font-weight:700;
+  line-height:1.32;
+  margin:0 0 .3rem;
+  color:var(--fg);
+  letter-spacing:-.01em;
+}
+
+.paper-card.accepted .paper-title::after{
+  content:'';
+  display:block;
+  width:2rem;
+  height:2px;
+  background:var(--accent);
+  margin-top:.55rem;
+}
+
+.paper-authors{
+  font-size:.65rem;
+  color:var(--muted);
+  line-height:1.5;
+  margin:0;
+}
+.paper-authors strong{
+  color:var(--fg);
+  font-weight:600;
+}
+
+.paper-footer{
+  display:flex;
+  align-items:center;
+  gap:1.4rem;
+  padding-top:.4rem;
+  border-top:1px solid var(--border);
+}
+
+.paper-link{
+  font-size:.6rem;
+  color:var(--accent);
+  text-decoration:none;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  font-weight:700;
+  display:inline-flex;
+  align-items:center;
+  gap:.3rem;
+  transition:opacity .18s;
+}
+.paper-link:hover{opacity:.7}
+.paper-card.clickable{cursor:pointer}
+.paper-footer{display:none}
+
+.paper-card-fig{
+  position:relative;
+  overflow:hidden;
+  border-bottom:1px solid var(--border);
+  background:#fff;
+  border-radius:10px 10px 0 0;
+  flex-shrink:0;
+}
+
+.paper-fig{
+  display:block;
+  width:100%;
+  height:200px;
+  object-fit:contain;
+  cursor:pointer;
+  transition:transform .35s ease, opacity .25s ease;
+  filter:grayscale(8%);
+  border-radius:10px 10px 0 0;
+  padding:16px;
+  background:#fff;
+}
+.paper-card:hover .paper-fig{
+  transform:scale(1.025);
+  opacity:.92;
+}
+
+.paper-fig-overlay{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(to top, rgba(237,234,226,.25) 0%, transparent 50%);
+  pointer-events:none;
+}
+
+.paper-index{
+  font-size:.58rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+  font-weight:600;
+  opacity:.5;
+}
+
+@media(max-width:700px){
+  .papers-list{grid-template-columns:1fr}
+  .paper-fig{height:180px}
+}
+
+/* ── SKILLS ── */
+#skills {
+  border-top: none;
+  background: #EDEAE2;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding-top: 68px;
+}
+#skills .si { width: 100%; }
+
+/* Three-column editorial strip */
+.skills-strip {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  margin-top: 2.4rem;
+  border-top: 1px solid rgba(0,0,0,0.15);
+}
+.sk-col {
+  padding: 2.2rem 2.8rem 2.4rem 0;
+}
+.sk-col:not(:last-child) {
+  border-right: 1px solid rgba(0,0,0,0.15);
+  margin-right: 2.8rem;
+}
+.sk-col-num {
+  font-size: .58rem;
+  letter-spacing: .28em;
+  color: rgba(0,0,0,0.28);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: .9rem;
+}
+.sk-col-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--fg);
+  margin-bottom: 1.8rem;
+  padding-bottom: .75rem;
+  border-bottom: 2px solid var(--accent);
+  display: inline-block;
+}
+.sk-item-list {
+  display: flex;
+  flex-direction: column;
+}
+.sk-item {
+  display: flex;
+  align-items: baseline;
+  gap: .65rem;
+  padding: .58rem 0;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  cursor: default;
+  transition: padding-left .18s;
+}
+.sk-item:last-child { border-bottom: none; }
+.sk-item::before {
+  content: '·';
+  color: var(--accent);
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sk-item:hover { padding-left: .35rem; }
+.sk-item-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -.01em;
+  transition: color .18s;
+}
+.sk-item-sub {
+  font-size: .68rem;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* legacy .skills-layout kept as stub to avoid parse errors */
+.skills-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: 1.8rem;
+  border-top: 1px solid rgba(0,0,0,0.15);
+}
+
+.skills-featured {
+  padding: 1.6rem 2.4rem 1.6rem 0;
+  border-right: 1px solid rgba(0,0,0,0.15);
+  position: relative;
+}
+
+.skills-featured-index {
+  font-size: 7rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(0,0,0,0.06);
+  font-family: 'Space Grotesk', sans-serif;
+  position: absolute;
+  top: 1.6rem;
+  right: 3rem;
+  letter-spacing: -.04em;
+  user-select: none;
+}
+
+.skills-featured-label {
+  font-size: .6rem;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.skills-featured-label::after {
+  content: '';
+  display: block;
+  height: 1px;
+  width: 2rem;
+  background: var(--accent);
+}
+
+.sk-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .4rem;
+}
+
+.sk-pill {
+  font-size: .75rem;
+  font-weight: 500;
+  color: var(--fg);
+  border: 1px solid rgba(0,0,0,0.18);
+  padding: .38rem .8rem;
+  letter-spacing: .02em;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  transition: color .22s, border-color .22s;
+  background: transparent;
+}
+.sk-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--fg);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  z-index: 0;
+}
+.sk-pill span { position: relative; z-index: 1; }
+.sk-pill:hover { color: #EDEAE2; border-color: var(--fg); }
+.sk-pill:hover::before { transform: scaleX(1); }
+
+.sk-pill.accent-pill {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sk-pill.accent-pill::before { background: var(--accent); }
+.sk-pill.accent-pill:hover { color: #EDEAE2; }
+
+.skills-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+
+.sk-block {
+  padding: 1.4rem 1.6rem 1.4rem 2rem;
+  border-bottom: 1px solid rgba(0,0,0,0.15);
+  position: relative;
+}
+.sk-block:nth-child(odd) {
+  border-right: 1px solid rgba(0,0,0,0.15);
+}
+.sk-block:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+
+.sk-block-label {
+  font-size: .58rem;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 1.1rem;
+}
+
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .28rem 0;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  transition: padding-left .18s;
+  cursor: default;
+}
+.sk-row:last-child { border-bottom: none; }
+.sk-row::before {
+  content: '—';
+  font-size: .6rem;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity .18s, transform .18s;
+  transform: translateX(-4px);
+  flex-shrink: 0;
+}
+.sk-row:hover { padding-left: .4rem; }
+.sk-row:hover::before { opacity: 1; transform: translateX(0); }
+
+.sk-row-text {
+  font-size: .8rem;
+  color: var(--muted);
+  transition: color .18s;
+}
+.sk-row:hover .sk-row-text { color: var(--fg); }
+
+.sk-block.wide {
+  grid-column: 1 / -1;
+  border-bottom: none;
+}
+.sk-block.wide .sk-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+.sk-block.wide .sk-pill {
+  font-size: .72rem;
+  padding: .32rem .7rem;
+  border-color: rgba(0,0,0,0.13);
+  color: var(--muted);
+}
+.sk-block.wide .sk-pill::before { background: var(--muted); }
+.sk-block.wide .sk-pill:hover { color: #EDEAE2; border-color: var(--muted); }
+
+@media (max-width: 768px) {
+  .skills-layout { grid-template-columns: 1fr; }
+  .skills-strip { grid-template-columns: 1fr; }
+  .sk-col:not(:last-child) {
+    border-right: none;
+    border-bottom: 1px solid rgba(0,0,0,0.15);
+    margin-right: 0;
+    padding-bottom: 2rem;
+  }
+}
+
+/* ── RESUME SCROLL ── */
+#scroll-resume{
+  background:#EDEAE2;
+  height:100vh;display:flex;align-items:center;
+  padding-top:calc(68px + 12vh);
+  scroll-snap-align:start;
+}
+#scroll-resume .si{padding:0 5vw 2rem;width:100%}
+.scroll-layout{
+  display:flex;justify-content:flex-start;align-items:center;
+  gap:0;
+  margin-left:calc(50% - 186.5px);
+  transition:gap .55s cubic-bezier(.16,1,.3,1),
+             margin-left .55s cubic-bezier(.16,1,.3,1);
+}
+.sc-roller{
+  height:32px;
+  background:#5a3212;
+  margin:0 -28px;
+  position:relative;
+  pointer-events:none;            /* decorative — never intercept clicks on entries beneath */
+  box-shadow:
+    inset 0 8px 0 #9a5a28,
+    inset 0 -8px 0 #1e0e03;
+}
+.sc-roller::before,.sc-roller::after{
+  content:'';position:absolute;
+  top:-4px;bottom:-4px;width:28px;
+  background:#4a2a0c;
+  box-shadow:inset 0 6px 0 #7a4220,inset 0 -6px 0 #180903;
+}
+.sc-roller::before{left:-28px}
+.sc-roller::after{right:-28px}
+
+.sc-body{
+  background:#edd99a;
+  padding:1.5rem 1.8rem;
+  background-image:repeating-linear-gradient(
+    180deg,transparent 0px,transparent 3px,rgba(0,0,0,.025) 3px,rgba(0,0,0,.025) 4px
+  );
+  /* Scroll-driven unroll: closed by default, revealed top→down via JS.
+     clip-path keeps the layout height fixed (no horizontal overflow on body).
+     Transition gives smooth gliding between the closed / half / open stages. */
+  clip-path:inset(0 0 100% 0);
+  -webkit-clip-path:inset(0 0 100% 0);
+  transition:clip-path .6s cubic-bezier(.16,1,.3,1),
+             -webkit-clip-path .6s cubic-bezier(.16,1,.3,1);
+}
+/* Bottom roller travels down as the parchment unrolls (transform = no layout shift) */
+.sc-roller-bottom{
+  position:relative;z-index:2;
+  transform:translateY(-420px);
+  will-change:transform;
+  transition:transform .6s cubic-bezier(.16,1,.3,1);
+}
+.sc-head{text-align:center;padding-bottom:.9rem;margin-bottom:.6rem;border-bottom:2px solid #c8a448}
+.sc-headname{font-size:.78rem;font-weight:700;letter-spacing:.22em;color:#3a1e06;text-transform:uppercase}
+.sc-headsub{font-size:.5rem;letter-spacing:.2em;color:#7a5828;text-transform:uppercase;margin-top:.15rem}
+.sc-cat{
+  font-size:.5rem;letter-spacing:.28em;color:#8a6030;
+  text-transform:uppercase;font-weight:700;margin:1rem 0 .3rem;
+}
+.sc-entry{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.32rem .5rem;cursor:pointer;
+  font-size:.68rem;letter-spacing:.05em;color:#3a1e06;font-weight:500;
+  transition:background .12s,color .12s;user-select:none;
+}
+.sc-entry:hover{background:rgba(58,30,6,.12);color:var(--accent)}
+.sc-entry.active{background:rgba(58,30,6,.18);color:var(--accent)}
+.sc-bullet{color:var(--accent);font-size:.6rem;flex-shrink:0}
+
+.sc-detail{
+  width:0;flex-shrink:0;overflow:hidden;
+  opacity:0;pointer-events:none;
+  margin-bottom:1.2rem;
+  transition:
+    width .55s cubic-bezier(.16,1,.3,1),
+    opacity .35s ease;
+}
+.sc-detail-inner{
+  width:560px;
+  padding-right:2rem;
+}
+.sc-scroll-col{width:373px;flex-shrink:0;margin-top:-2px;align-self:flex-start}
+.scroll-layout.expanded{gap:6rem;margin-left:0}
+.scroll-layout.expanded .sc-detail{
+  width:560px;opacity:1;pointer-events:auto;
+}
+.scroll-layout.expanded .sc-detail .sc-d-badge,
+.scroll-layout.expanded .sc-detail .sc-d-title,
+.scroll-layout.expanded .sc-detail .sc-d-period,
+.scroll-layout.expanded .sc-detail .sc-d-desc,
+.scroll-layout.expanded .sc-detail .sc-d-bullets,
+.scroll-layout.expanded .sc-detail .sc-d-tags,
+.scroll-layout.expanded .sc-detail .sc-d-link,
+.scroll-layout.expanded .sc-detail .sc-d-navlink{
+  animation:scFadeUp .4s .25s both cubic-bezier(.16,1,.3,1);
+}
+@keyframes scFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.sc-hint{
+  font-size:.52rem;letter-spacing:.2em;color:rgba(0,0,0,.2);
+  text-transform:uppercase;margin-top:2rem;
+}
+.sc-d-badge{
+  font-size:.52rem;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;margin-bottom:.6rem;
+}
+.sc-d-title{
+  font-size:clamp(1.8rem,3.5vw,3rem);font-weight:700;
+  color:var(--fg);letter-spacing:-.02em;line-height:1;margin-bottom:.35rem;
+}
+.sc-d-period{
+  font-size:.65rem;letter-spacing:.1em;
+  color:var(--muted);margin-bottom:1rem;
+}
+.sc-d-desc{font-size:.82rem;line-height:1.7;color:#444;margin-bottom:.9rem}
+.sc-d-bullets{list-style:none;display:flex;flex-direction:column;gap:.55rem;margin-bottom:1rem}
+.sc-d-bullets li{
+  font-size:.76rem;line-height:1.6;color:var(--muted);
+  padding-left:1rem;position:relative;
+}
+.sc-d-bullets li::before{content:'▸';position:absolute;left:0;color:var(--accent);font-size:.58rem}
+.sc-d-tags{display:flex;flex-wrap:wrap;gap:.35rem}
+.sc-d-tag{
+  font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.18rem .55rem;background:rgba(0,0,0,.07);
+  color:var(--muted);font-weight:600;
+}
+.sc-d-link{
+  display:inline-block;margin-top:.9rem;font-size:.65rem;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);text-decoration:none;font-weight:700;
+}
+.sc-d-link:hover{opacity:.7}
+/* Navigation button inside scroll detail */
+.sc-d-navlink{
+  display:inline-block;margin-top:.8rem;margin-left:.6rem;
+  font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+  padding:.38rem 1rem;background:var(--accent);
+  color:#fff;text-decoration:none;font-weight:700;cursor:pointer;
+  transition:opacity .2s;border:none;font-family:var(--f);
+}
+.sc-d-navlink:hover{opacity:.8}
+.sc-d-links-row{margin-top:.9rem;display:flex;align-items:center;flex-wrap:wrap;gap:0}
+
+/* ── CONTACT ── */
+#contact{
+  border-top:none;background:#EDEAE2;
+  min-height:100vh;display:flex;align-items:center;
+  padding-top:68px;box-sizing:border-box;
+}
+#contact .si{width:100%}
+.contact-layout{
+  display:grid;grid-template-columns:1fr 1.4fr;
+  gap:4rem;align-items:center;
+}
+.contact-big{
+  font-size:clamp(2.8rem,5.5vw,5.5rem);font-weight:700;
+  letter-spacing:-.04em;text-transform:uppercase;
+  line-height:.88;margin-bottom:0;color:var(--fg);
+}
+.contact-big em{color:var(--accent);font-style:normal}
+/* right col: push content toward the right edge */
+.contact-links-col{
+  display:flex;justify-content:flex-end;
+}
+.contact-list{display:flex;flex-direction:column;width:100%;max-width:380px;}
+.clink{
+  display:flex;align-items:baseline;gap:1.5rem;
+  padding:1.2rem 0;border-bottom:1px solid rgba(0,0,0,.09);
+  text-decoration:none;color:var(--fg);transition:color .2s;
+}
+.clink:first-child{border-top:1px solid rgba(0,0,0,.09)}
+.clink:hover{color:var(--accent)}
+.cl-label{
+  font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:600;min-width:88px;flex-shrink:0;
+}
+.cl-val{font-size:1.15rem;color:var(--muted);transition:color .2s;flex:1}
+.clink:hover .cl-val{color:var(--accent)}
+.cl-arr{color:rgba(0,0,0,.3);font-size:1rem;margin-left:auto;transition:color .2s;flex-shrink:0}
+.clink:hover .cl-arr{color:var(--accent)}
+/* now card */
+.contact-now{
+  margin-top:2rem;
+  background:rgba(160,148,130,.18);
+  border:1px solid rgba(0,0,0,.07);
+  border-left:3px solid var(--accent);
+  border-radius:8px;
+  padding:1rem 1.3rem 1rem 1.1rem;
+  display:inline-block;
+}
+.now-header{
+  display:flex;align-items:center;gap:.55rem;
+  margin-bottom:.75rem;
+}
+.now-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--accent);flex-shrink:0;
+  animation:pulse-dot 2.2s ease-in-out infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.4;transform:scale(1.3)}
+}
+.now-title{
+  font-size:.65rem;letter-spacing:.16em;text-transform:uppercase;
+  font-weight:700;color:var(--fg);
+}
+.contact-now-list{display:flex;flex-direction:column;gap:0}
+.cnow-item{
+  font-size:.8rem;color:var(--muted);line-height:1;
+  padding:.45rem 0;border-bottom:1px solid rgba(0,0,0,.06);
+}
+.cnow-item:last-child{border-bottom:none;padding-bottom:0}
+.cnow-item:first-child{padding-top:0}
+.cnow-label{
+  font-size:.6rem;letter-spacing:.13em;text-transform:uppercase;
+  font-weight:600;color:rgba(0,0,0,.32);
+  display:inline-block;min-width:68px;margin-right:.5rem;
+}
+/* contact cards */
+.contact-cards{display:flex;flex-direction:column;gap:.65rem;width:fit-content;}
+.contact-card{
+  display:flex;align-items:center;gap:1.4rem;
+  padding:1.35rem 1.7rem;
+  background:rgba(160,148,130,.18);
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:10px;
+  text-decoration:none;color:var(--fg);
+  transition:background .2s, transform .2s, color .2s;
+  white-space:nowrap;
+}
+.contact-card:hover{
+  background:rgba(160,148,130,.32);
+  transform:translateX(5px);
+  color:var(--accent);
+}
+.cc-icon{
+  width:24px;height:24px;flex-shrink:0;
+  opacity:.5;transition:opacity .2s, color .2s;
+}
+.contact-card:hover .cc-icon{opacity:1;color:var(--accent);}
+.cc-text{flex:1;min-width:0;}
+.cc-label{
+  display:block;font-size:.64rem;letter-spacing:.14em;
+  text-transform:uppercase;font-weight:600;
+  color:var(--muted);margin-bottom:.22rem;
+}
+.cc-val{
+  display:block;font-size:1.1rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:color .2s;
+}
+.contact-card:hover .cc-val{color:var(--accent);}
+.cc-arr{
+  font-size:1rem;opacity:.3;flex-shrink:0;
+  transition:opacity .2s, color .2s;
+}
+.contact-card:hover .cc-arr{opacity:1;color:var(--accent);}
+
+.crown-block{
+  height:130px;margin-top:0;margin-bottom:0;
+}
+#contact .s-label{color:var(--muted)}
+#crown-canvas{
+  width:100%;height:100%;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+}
+
+
+/* ── FOOTER ── */
+footer{
+  background:#EDEAE2;border-top:1px solid rgba(0,0,0,.09);
+  padding:1.8rem 5vw;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:.64rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;
+}
+
+/* ── REVEAL ── */
+.reveal{
+  opacity:0;transform:translateY(22px);
+  transition:opacity .88s cubic-bezier(.16,1,.3,1),transform .88s cubic-bezier(.16,1,.3,1);
+}
+.reveal.in{opacity:1;transform:none}
+
+/* ── KEYFRAMES ── */
+@keyframes riseIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes marqueeAnim{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  #hero{grid-template-columns:1fr}
+  .hero-right{display:none}
+  .about-layout{grid-template-columns:1fr}
+  .exp-layout{grid-template-columns:1fr}
+  .experience-heading{margin-left:0}
+  .work-grid{grid-template-columns:1fr}
+  .work-card{border-right:none;border-bottom:1px solid var(--border)}
+  .paper{grid-template-columns:1fr;gap:.5rem}
+  .skills-grid{grid-template-columns:1fr 1fr}
+  .contact-layout{grid-template-columns:1fr}
+  .crown-block{display:none}
+  nav{padding:0 4vw}
+  .nav-links{gap:1.5rem}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV (global fixed) -->
+<nav>
+  <a class="nav-logo" onclick="showPage('home')"><span>R</span>T</a>
+  <ul class="nav-links">
+    <li><a data-page="home"    onclick="showPage('home')">Home</a></li>
+    <li><a data-page="work"    onclick="showPage('work')">Work</a></li>
+    <li><a data-page="papers"  onclick="showPage('papers')">Papers</a></li>
+    <li><a data-page="skills"  onclick="showPage('skills')">Skills</a></li>
+    <li><a data-page="contact" onclick="showPage('contact')">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════════════════
+     HOME PAGE  (Hero + Marquee + Scroll)
+═══════════════════════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- ═══ HERO ═══ -->
+  <section id="hero">
+    <div class="hero-left">
+      <p class="hero-eyebrow">AI Researcher · HKUST(GZ) · DIAL Lab</p>
+      <h1 class="hero-name">
+        Raymond<br><em>Tseng</em>
+        <span style="display:block;font-size:clamp(1.6rem,3.6vw,3.6rem);letter-spacing:.06em;color:var(--muted);font-weight:500;margin-top:.4rem;font-family:'DotGothic16',sans-serif">曾彥齊</span>
+      </h1>
+      <div class="hero-badges">
+        <span class="badge hot">Red Bird Scholar</span>
+        <span class="badge">ICML 2026</span>
+        <span class="badge">B.S. AI · Class of '27</span>
+      </div>
+      <div class="hero-cta">
+        <button class="btn btn-filled" onclick="showPage('work')">View Work</button>
+        <button class="btn btn-outline" onclick="showPage('contact')">Contact</button>
+      </div>
+    </div>
+    <div class="hero-right">
+      <canvas id="chess-canvas"></canvas>
+    </div>
+  </section>
+
+  <!-- ═══ MARQUEE ═══ -->
+  <div class="marquee-wrap" aria-hidden="true">
+    <div class="marquee-track">
+      <span class="marquee-item">Quadruped Locomotion</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Reinforcement Learning</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Web Agent</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">ICML 2026</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Chess</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Foosball</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Quadruped Locomotion</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Reinforcement Learning</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Web Agent</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">ICML 2026</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Chess</span><span class="marquee-sep">·</span>
+      <span class="marquee-item">Foosball</span><span class="marquee-sep">·</span>
+    </div>
+  </div>
+
+  <!-- ═══ ABOUT ═══ -->
+  <section id="about">
+    <div class="si">
+      <div class="about-layout">
+        <div class="reveal">
+          <p class="s-label">// 01 — About</p>
+          <h2 class="s-title" style="margin-bottom:0">Who<br>I Am</h2>
+        </div>
+        <div class="about-left-col reveal">
+          <p class="bio-text">
+            I don't just track frontier research — I map it to live problems in real time. In smart glasses R&D, I was the one walking into meetings saying "NVIDIA shipped something last week that fits exactly what we're stuck on."
+          </p>
+          <p class="bio-text">
+            My first move is always to ask whether the problem itself is right. When the team was fixating on CV localization, the actual goal was recognition — event recognition got us there, without the complexity.
+          </p>
+          <div class="crown-block">
+            <canvas id="crown-canvas"></canvas>
+          </div>
+          <div class="callout">
+            <p class="callout-label">Red Bird Scholarship · 2023 · Sole Recipient</p>
+            <p class="callout-text">First principles isn't a framework I apply. It's the reflex that fires before I write the first line.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ EXPERIENCE ═══ -->
+  <section id="experience">
+    <div class="si">
+      <div class="exp-layout">
+        <div class="reveal">
+          <p class="exp-label">// Experience</p>
+          <div class="exp-item">
+            <div class="exp-header">
+              <span class="exp-role">Research Assistant</span>
+              <span class="exp-period">2025.05 — Present</span>
+            </div>
+            <p class="exp-org">DIAL Laboratory · HKUST(GZ)</p>
+            <p class="exp-desc">Supervised by Prof. Yuyu Luo. Web environment synthesis, multimodal benchmarking, AI agent systems.</p>
+          </div>
+          <div class="exp-item">
+            <div class="exp-header">
+              <span class="exp-role">Research Assistant</span>
+              <span class="exp-period">2026.06 — Present</span>
+            </div>
+            <p class="exp-org">RMPC Lab · HKUST(GZ)</p>
+            <p class="exp-desc">Supervised by Prof. Jun Ma. Universal and efficient online reinforcement learning for quadruped locomotion.</p>
+          </div>
+          <div class="exp-item">
+            <div class="exp-header">
+              <span class="exp-role">AI Intern</span>
+              <span class="exp-period">2026.07 — 2026.09</span>
+            </div>
+            <p class="exp-org">KKday · Taipei (Onsite)</p>
+            <p class="exp-desc">Top AI Internship Program. LLM application development with LangGraph for travel industry use cases.</p>
+          </div>
+        </div>
+        <div class="reveal">
+          <p class="s-label experience-heading">// 02 — Experience</p>
+          <h2 class="s-title experience-heading experience-title">Work That<br>Shaped Me</h2>
+          <div class="foosball-block">
+            <canvas id="foosball-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ RESUME SCROLL ═══ -->
+  <section id="scroll-resume">
+    <div class="si">
+      <div class="scroll-layout" id="scroll-layout">
+
+        <!-- Detail Panel (width:0 → expands on click) -->
+        <div class="sc-detail" id="sc-detail">
+          <div class="sc-detail-inner">
+            <!-- content injected by JS -->
+          </div>
+        </div>
+
+        <!-- Scroll Column -->
+        <div class="sc-scroll-col">
+          <div class="sc-roller"></div>
+          <div class="sc-body">
+            <div class="sc-head">
+              <p class="sc-headname">Raymond Tseng · 曾彥齊</p>
+              <p class="sc-headsub">Curriculum Vitae</p>
+            </div>
+
+            <p class="sc-cat">// Education</p>
+            <div class="sc-entry" data-key="edu">
+              <span class="sc-bullet">▸</span>HKUST(GZ) · B.S. AI · 2023–2027
+            </div>
+
+            <p class="sc-cat">// Research</p>
+            <div class="sc-entry" data-key="dial">
+              <span class="sc-bullet">▸</span>DIAL Lab · Prof. Yuyu Luo
+            </div>
+            <div class="sc-entry" data-key="rmpc">
+              <span class="sc-bullet">▸</span>RMPC Lab · Prof. Jun Ma
+            </div>
+
+            <p class="sc-cat">// Projects</p>
+            <div class="sc-entry" data-key="quadruped">
+              <span class="sc-bullet">▸</span>Quadruped RL (FYP)
+            </div>
+            <div class="sc-entry" data-key="zson">
+              <span class="sc-bullet">▸</span>ZSON + SG-Navigation
+            </div>
+            <div class="sc-entry" data-key="muzero">
+              <span class="sc-bullet">▸</span>MuZero Chess Agent
+            </div>
+            <div class="sc-entry" data-key="drugraph">
+              <span class="sc-bullet">▸</span>TW-DrugGraph
+            </div>
+
+            <p class="sc-cat">// Publications</p>
+            <div class="sc-entry" data-key="autowebworld">
+              <span class="sc-bullet">▸</span>AutoWebWorld · ICML 2026
+            </div>
+            <div class="sc-entry" data-key="ui2app">
+              <span class="sc-bullet">▸</span>UI2App · NeurIPS 2026
+            </div>
+            <div class="sc-entry" data-key="chart">
+              <span class="sc-bullet">▸</span>Text-to-Chart · ACL ARR 2026
+            </div>
+          </div>
+          <div class="sc-roller sc-roller-bottom"></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</div><!-- /page-home -->
+
+
+
+
+<!-- ═══════════════════════════════════
+     WORK PAGE
+═══════════════════════════════════ -->
+<div id="page-work" class="page">
+  <section id="work">
+    <div class="si">
+      <div class="work-header-row reveal">
+        <div>
+          <p class="s-label">// 02 — Work</p>
+          <h2 class="s-title">Projects &amp;<br>Products</h2>
+        </div>
+        <span class="work-count">05 Selected Works</span>
+      </div>
+
+      <div class="work-grid">
+
+        <div class="work-card reveal">
+          <div class="work-card-top">
+            <p class="work-num">001</p>
+            <span class="work-type-badge">Research · Robotics</span>
+          </div>
+          <h3 class="work-title">Quadruped RL</h3>
+          <div class="work-divider"></div>
+          <p class="work-desc">FYP at RMPC Lab under Prof. Jun Ma. Universal and efficient online reinforcement learning for quadruped locomotion — enabling legged robots to adapt and move robustly across complex terrains in real time.</p>
+          <div class="work-tags">
+            <span class="work-tag">Isaac Sim</span>
+            <span class="work-tag">SAC</span>
+            <span class="work-tag">RL</span>
+            <span class="work-tag">Robotics</span>
+            <span class="work-tag">Python</span>
+          </div>
+          <div class="work-footer">
+            <span class="work-status">In Progress</span>
+          </div>
+        </div>
+
+        <div class="work-card reveal">
+          <div class="work-card-top">
+            <p class="work-num">002</p>
+            <span class="work-type-badge">Research · Embodied AI</span>
+          </div>
+          <h3 class="work-title">ZSON + SG-Nav</h3>
+          <div class="work-divider"></div>
+          <p class="work-desc">Zero-shot indoor object navigation with a memory-augmented agent. Identified core LLM bottleneck (no memory/feedback), designed agent framework with memory modules and floor-level context injection. Improved success rate 36% → 40% on HM3D.</p>
+          <div class="work-tags">
+            <span class="work-tag">Habitat</span>
+            <span class="work-tag">LLaMA 3.2</span>
+            <span class="work-tag">CLIP</span>
+            <span class="work-tag">Embodied AI</span>
+          </div>
+          <div class="work-footer">
+            <span class="work-status">Completed</span>
+          </div>
+        </div>
+
+        <div class="work-card reveal">
+          <div class="work-card-top">
+            <p class="work-num">003</p>
+            <span class="work-type-badge">Research · RL</span>
+          </div>
+          <h3 class="work-title">MuZero Chess</h3>
+          <div class="work-divider"></div>
+          <p class="work-desc">MuZero architecture for chess self-play. Analyzes design trade-offs of learned world models (representation, dynamics, prediction) vs. model-free RL. Quantifies planning depth vs. agent decision performance.</p>
+          <div class="work-tags">
+            <span class="work-tag">PyTorch</span>
+            <span class="work-tag">MCTS</span>
+            <span class="work-tag">RL</span>
+            <span class="work-tag">World Models</span>
+          </div>
+          <div class="work-footer">
+            <span class="work-status">Completed</span>
+          </div>
+        </div>
+
+        <div class="work-card reveal">
+          <div class="work-card-top">
+            <p class="work-num">004</p>
+            <span class="work-type-badge">Product · v1.5.0</span>
+          </div>
+          <h3 class="work-title">Due Extension</h3>
+          <div class="work-divider"></div>
+          <p class="work-desc">Chrome extension for Canvas LMS. Aggregates assignments, deadlines, and grade weights into a clean dashboard — 7-day preview, urgency color coding, grade calculator. AI reads syllabi to auto-extract grade breakdowns. No API token required.</p>
+          <div class="work-tags">
+            <span class="work-tag">JS</span>
+            <span class="work-tag">Chrome API</span>
+            <span class="work-tag">Gemini</span>
+            <span class="work-tag">DeepSeek</span>
+          </div>
+          <div class="work-footer">
+            <a href="https://chromewebstore.google.com/detail/due/mgncgfpppjecmfkahchchidfpckpnfid"
+               target="_blank" class="work-link">
+              Chrome Store <span class="work-link-arrow">↗</span>
+            </a>
+            <span class="work-status">Live</span>
+          </div>
+        </div>
+
+        <div class="work-card reveal">
+          <div class="work-card-top">
+            <p class="work-num">005</p>
+            <span class="work-type-badge">Research · RAG</span>
+          </div>
+          <h3 class="work-title">TW-DrugGraph</h3>
+          <div class="work-divider"></div>
+          <p class="work-desc">Bilingual drug interaction Q&amp;A system built on DrugBank 6.0. Compares GraphRAG (Neo4j + Cypher) vs. Flat RAG (Qdrant + BGE-M3) on multi-hop reasoning. Includes a 500-question stratified benchmark across 1/2/3-hop complexity.</p>
+          <div class="work-tags">
+            <span class="work-tag">Neo4j</span>
+            <span class="work-tag">Qdrant</span>
+            <span class="work-tag">BGE-M3</span>
+            <span class="work-tag">GraphRAG</span>
+            <span class="work-tag">Python</span>
+          </div>
+          <div class="work-footer">
+            <span class="work-status">Completed</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</div><!-- /page-work -->
+
+
+<!-- ═══════════════════════════════════
+     PAPERS PAGE
+═══════════════════════════════════ -->
+<div id="page-papers" class="page">
+  <section id="papers">
+    <div class="si">
+      <div class="papers-header reveal">
+        <p class="s-label">// 03 — Publications</p>
+        <h2 class="s-title">Research<br>Papers</h2>
+      </div>
+      <div class="papers-list">
+
+        <div class="paper-card accepted clickable reveal" onclick="window.open('https://arxiv.org/abs/2602.14296','_blank')">
+          <div class="paper-card-fig">
+            <img src="fig_autowebworld-1.png" alt="AutoWebWorld architecture" class="paper-fig">
+            <div class="paper-fig-overlay"></div>
+          </div>
+          <div class="paper-card-body">
+            <div>
+              <div class="paper-meta-row">
+                <span class="paper-venue">ICML 2026</span>
+                <span class="sbadge ok">Accepted</span>
+                <span class="paper-index">01</span>
+              </div>
+            </div>
+            <div class="paper-content">
+              <p class="paper-title">AutoWebWorld: Synthesizing Infinite Verifiable Web Environments via Finite State Machines</p>
+              <p class="paper-authors">Yifan Wu, Yiran Peng, ..., <strong>Yenchi Tseng</strong>, ..., Yuyu Luo</p>
+            </div>
+            <div class="paper-footer">
+              <a href="https://arxiv.org/abs/2602.14296" target="_blank" class="paper-link">arXiv ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="paper-card reveal">
+          <div class="paper-card-fig">
+            <img src="fig_ui2app.png" alt="UI2App architecture" class="paper-fig">
+            <div class="paper-fig-overlay"></div>
+          </div>
+          <div class="paper-card-body">
+            <div>
+              <div class="paper-meta-row">
+                <span class="paper-venue">NeurIPS 2026</span>
+                <span class="sbadge rv">Under Review</span>
+                <span class="paper-index">02</span>
+              </div>
+            </div>
+            <div class="paper-content">
+              <p class="paper-title">UI2App: Benchmarking Visual Interaction Inference in Executable Web Application Generation</p>
+              <p class="paper-authors">Man Chen, Litao Guo, ..., <strong>Yenchi Tseng</strong>, ..., Ying-Cong Chen</p>
+            </div>
+            <div class="paper-footer"></div>
+          </div>
+        </div>
+
+        <div class="paper-card clickable reveal" onclick="window.open('https://arxiv.org/abs/2505.10043','_blank')">
+          <div class="paper-card-fig">
+            <img src="fig_boosting-1.png" alt="Boosting architecture" class="paper-fig">
+            <div class="paper-fig-overlay"></div>
+          </div>
+          <div class="paper-card-body">
+            <div>
+              <div class="paper-meta-row">
+                <span class="paper-venue">ACL ARR 2026</span>
+                <span class="sbadge rv">Under Review</span>
+                <span class="paper-index">03</span>
+              </div>
+            </div>
+            <div class="paper-content">
+              <p class="paper-title">Boosting Text-to-Chart Retrieval through Training with Synthesized Semantic Insights</p>
+              <p class="paper-authors">Yifan Wu, Lutao Yan, ..., <strong>Yenchi Tseng</strong>, ..., Yuyu Luo</p>
+            </div>
+            <div class="paper-footer">
+              <a href="https://arxiv.org/abs/2505.10043" target="_blank" class="paper-link">arXiv ↗</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</div><!-- /page-papers -->
+
+
+<!-- ═══════════════════════════════════
+     SKILLS PAGE
+═══════════════════════════════════ -->
+<div id="page-skills" class="page">
+  <section id="skills">
+    <div class="si">
+      <div class="reveal">
+        <p class="s-label">// 04 — Skills</p>
+        <h2 class="s-title">Technical<br>Stack</h2>
+      </div>
+
+      <div class="skills-strip">
+
+        <!-- Col 1: RL & Robotics -->
+        <div class="sk-col reveal">
+          <p class="sk-col-num">01</p>
+          <p class="sk-col-title">RL &amp; Robotics</p>
+          <div class="sk-item-list">
+            <div class="sk-item">
+              <span class="sk-item-name">Embodied AI</span>
+            </div>
+            <div class="sk-item">
+              <span class="sk-item-name">Isaac Sim</span>
+              <span class="sk-item-sub">Robotics</span>
+            </div>
+            <div class="sk-item">
+              <span class="sk-item-name">SAC</span>
+              <span class="sk-item-sub">Reinforcement Learning</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 2: Agent & LLM -->
+        <div class="sk-col reveal">
+          <p class="sk-col-num">02</p>
+          <p class="sk-col-title">Agent &amp; LLM</p>
+          <div class="sk-item-list">
+            <div class="sk-item">
+              <span class="sk-item-name">LangGraph</span>
+              <span class="sk-item-sub">Agent Orchestration</span>
+            </div>
+            <div class="sk-item">
+              <span class="sk-item-name">OpenClaw</span>
+            </div>
+            <div class="sk-item">
+              <span class="sk-item-name">LLM-in-Research</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Life -->
+        <div class="sk-col reveal">
+          <p class="sk-col-num">03</p>
+          <p class="sk-col-title">Life &amp; Real Life</p>
+          <div class="sk-item-list">
+            <div class="sk-item">
+              <span class="sk-item-name">Chess</span>
+              <span class="sk-item-sub">1300</span>
+            </div>
+            <div class="sk-item">
+              <span class="sk-item-name">Golf</span>
+              <span class="sk-item-sub">92</span>
+            </div>
+            <div class="sk-item">
+              <span class="sk-item-name">Foosball</span>
+              <span class="sk-item-sub">ASTA top300</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /skills-strip -->
+    </div>
+  </section>
+</div><!-- /page-skills -->
+
+
+<!-- ═══════════════════════════════════
+     CONTACT PAGE
+═══════════════════════════════════ -->
+<div id="page-contact" class="page">
+  <section id="contact">
+    <div class="si">
+      <div class="contact-layout">
+
+        <!-- LEFT — heading + now (secondary) -->
+        <div class="reveal">
+          <p class="s-label">// 05 — Contact</p>
+          <h2 class="contact-big">Get<br>In <em>Touch</em></h2>
+          <div class="contact-now">
+            <div class="now-header">
+              <span class="now-dot"></span>
+              <span class="now-title">Now</span>
+            </div>
+            <div class="contact-now-list">
+              <p class="cnow-item"><span class="cnow-label">Building</span>Quadruped RL · Real Hardware</p>
+              <p class="cnow-item"><span class="cnow-label">Interning</span>KKday · Taipei</p>
+              <p class="cnow-item"><span class="cnow-label">Designing</span>Smart Glasses · Biology Lab</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT — contact cards (primary) -->
+        <div class="contact-links-col">
+          <div class="contact-cards">
+
+            <a href="mailto:0610raymond@gmail.com" class="contact-card reveal">
+              <svg class="cc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="M2 7l10 7 10-7"/>
+              </svg>
+              <span class="cc-text">
+                <span class="cc-label">Email</span>
+                <span class="cc-val">0610raymond@gmail.com</span>
+              </span>
+              <span class="cc-arr">↗</span>
+            </a>
+
+            <a href="https://github.com/Raytengo" target="_blank" class="contact-card reveal">
+              <svg class="cc-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+              </svg>
+              <span class="cc-text">
+                <span class="cc-label">GitHub</span>
+                <span class="cc-val">github.com/Raytengo</span>
+              </span>
+              <span class="cc-arr">↗</span>
+            </a>
+
+            <a href="https://www.linkedin.com/in/raymond-tseng-800323277/" target="_blank" class="contact-card reveal">
+              <svg class="cc-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6.5 21.5h-5v-13h5v13zM4 6.5C2.5 6.5 1.5 5.3 1.5 4s1-2.4 2.5-2.4c1.6 0 2.5 1 2.6 2.5 0 1.4-1 2.5-2.6 2.5zm11.5 6c-1 0-2 .5-2 1.9v5.1h-5v-13h5V10s1.6-1.5 4-1.5c3 0 5 2.2 5 6.3v6.7h-5v-5.2c0-1.4-.5-2.8-2-2.8z"/>
+              </svg>
+              <span class="cc-text">
+                <span class="cc-label">LinkedIn</span>
+                <span class="cc-val">Raymond Tseng</span>
+              </span>
+              <span class="cc-arr">↗</span>
+            </a>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</div><!-- /page-contact -->
+
+
+<script>
+/* ══════════════════════════════════════════════════
+   PAGE ROUTER
+══════════════════════════════════════════════════ */
+function showPage(name) {
+  var current = document.querySelector('.page.active');
+  var el = document.getElementById('page-' + name);
+  if (!el) return;
+  // If already on home, scroll to top and reset scroll widget
+  if (el === current && name === 'home') {
+    el.scrollTop = 0;
+    var layout = document.getElementById('scroll-layout');
+    if (layout) layout.classList.remove('expanded');
+    document.querySelectorAll('.sc-entry').forEach(function(e){ e.classList.remove('active'); });
+    var inner = document.querySelector('#sc-detail .sc-detail-inner');
+    if (inner) inner.innerHTML = '';
+    return;
+  }
+  if (el === current) return;
+
+  // scroll to top on incoming page
+  el.scrollTop = 0;
+
+  // update nav active state
+  document.querySelectorAll('.nav-links a').forEach(function(a) {
+    a.classList.toggle('nav-active', a.getAttribute('data-page') === name);
+  });
+
+  if (!current) {
+    el.classList.add('active');
+  } else {
+    // slide old page out to left
+    current.classList.remove('active');
+    current.classList.add('slide-out');
+    // slide new page in from right
+    el.classList.add('slide-in');
+    // after animation ends, clean up classes
+    setTimeout(function() {
+      current.classList.remove('slide-out');
+      el.classList.remove('slide-in');
+      el.classList.add('active');
+    }, 730);
+  }
+
+  // trigger reveal animations on newly visible page
+  setTimeout(function() {
+    el.querySelectorAll('.reveal:not(.in)').forEach(function(r) {
+      r.classList.add('in');
+    });
+  }, 80);
+  // lazy canvas inits
+  // reset scroll section when going home
+  if (name === 'home') {
+    var layout = document.getElementById('scroll-layout');
+    if (layout) layout.classList.remove('expanded');
+    document.querySelectorAll('.sc-entry').forEach(function(e) { e.classList.remove('active'); });
+    var inner = document.querySelector('#sc-detail .sc-detail-inner');
+    if (inner) inner.innerHTML = '';
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   THREE.JS — LOW-POLY GAME OBJECTS
+══════════════════════════════════════════════════ */
+function hlLights(scene) {
+  var k = new THREE.DirectionalLight(0xffffff, 3.6);
+  k.position.set(-2, 5, 2);
+  scene.add(k);
+  var f = new THREE.DirectionalLight(0x1a0800, 0.5);
+  f.position.set(3, -2, -3);
+  scene.add(f);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.07));
+}
+
+function mkRenderer(canvas, W, H, scale) {
+  var r = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: false });
+  r.setSize(Math.max(4, Math.floor(W * scale)), Math.max(4, Math.floor(H * scale)), false);
+  return r;
+}
+
+function lm(color) {
+  return new THREE.MeshLambertMaterial({ color: color, flatShading: true });
+}
+
+/* ════ 1. CHESS PAWN ════ */
+function initChess() {
+  var canvas = document.getElementById('chess-canvas');
+  if (!canvas) return;
+  var container = canvas.parentElement;
+  var W = container.clientWidth  || window.innerWidth / 2;
+  var H = container.clientHeight || (window.innerHeight - 68);
+  if (W < 10 || H < 10) { setTimeout(initChess, 80); return; }
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(36, W / H, 0.1, 50);
+  camera.position.set(0.5, 0.7, 8.5);
+  camera.lookAt(0.5, 0.1, 0);
+
+  var renderer = mkRenderer(canvas, W, H, 0.44);
+  hlLights(scene);
+
+  var mat = lm(0x111111);
+
+  function add(geo, y) {
+    var m = new THREE.Mesh(geo, mat);
+    m.position.y = y;
+    return m;
+  }
+
+  var pivot = new THREE.Group();
+  scene.add(pivot);
+  var pawn = new THREE.Group();
+  pivot.add(pawn);
+
+  pawn.add(add(new THREE.CylinderGeometry(0.76, 0.82, 0.18, 6), 0.09));
+  pawn.add(add(new THREE.CylinderGeometry(0.30, 0.68, 0.28, 6), 0.32));
+  pawn.add(add(new THREE.CylinderGeometry(0.22, 0.30, 0.72, 6), 0.82));
+  pawn.add(add(new THREE.CylinderGeometry(0.34, 0.34, 0.14, 6), 1.25));
+  pawn.add(add(new THREE.SphereGeometry(0.46, 6, 5), 1.78));
+  pawn.position.y = -0.9;
+
+  var tiltZ = -0.44;
+  var tiltX = 0.0;
+  pivot.rotation.z = tiltZ;
+
+  var isDragging = false;
+  var prevX = 0, prevY = 0;
+  var t = 0;
+
+  function onDragStart(x, y) { isDragging = true; prevX = x; prevY = y; }
+  function onDragMove(x, y) {
+    if (!isDragging) return;
+    var rect = canvas.getBoundingClientRect();
+    var midY = rect.top + rect.height * 0.5;
+    var zSign = (prevY < midY) ? -1 : 1;
+    tiltZ += zSign * (x - prevX) * 0.013;
+    tiltX += (y - prevY) * 0.013;
+    prevX = x; prevY = y;
+  }
+  function onDragEnd() { isDragging = false; }
+
+  canvas.addEventListener('mousedown',  function(e){ onDragStart(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove',  function(e){ onDragMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup',    onDragEnd);
+  canvas.addEventListener('touchstart', function(e){ onDragStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, {passive:false});
+  window.addEventListener('touchmove',  function(e){ if(isDragging){ onDragMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, {passive:false});
+  window.addEventListener('touchend',   onDragEnd);
+
+  (function tick() {
+    requestAnimationFrame(tick);
+    t += 0.011;
+    pawn.rotation.y = t;
+    pivot.rotation.z = tiltZ;
+    pivot.rotation.x = tiltX;
+    pivot.position.y = Math.sin(t * 0.65) * 0.09;
+    renderer.render(scene, camera);
+  })();
+}
+
+/* ════ 2. FOOSBALL PLAYER ════ */
+function initFoosball() {
+  var canvas = document.getElementById('foosball-canvas');
+  if (!canvas) return;
+  var container = canvas.parentElement;
+  var W = container.clientWidth  || 400;
+  var H = container.clientHeight || 260;
+  if (W < 10 || H < 10) { setTimeout(initFoosball, 80); return; }
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 50);
+  camera.position.set(0, 0.8, 6.5);
+  camera.lookAt(0, 0.4, 0);
+
+  var renderer = mkRenderer(canvas, W, H, 0.48);
+  hlLights(scene);
+
+  var orange = lm(0xFF4500);
+  var silver = lm(0xAAAAAA);
+  var skin   = lm(0xF0B070);
+  var blk    = lm(0x111111);
+
+  var g = new THREE.Group();
+
+  // rod sits at the players' body-centre height (= their pivot)
+  var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 6, 5), silver);
+  rod.rotation.z = Math.PI / 2;
+  rod.position.y = 0.43;
+  g.add(rod);
+
+  function makePlayer(px) {
+    var p = new THREE.Group();
+    // parts built around the body centre (y=0) so the figure pivots there
+    var body = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.72, 0.3), orange);
+    body.position.y = 0;
+    p.add(body);
+
+    var head = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.3), skin);
+    head.position.y = 0.65;
+    p.add(head);
+
+    [-0.13, 0.13].forEach(function(x) {
+      var leg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.33, 0.25), orange);
+      leg.position.set(x, -0.595, 0);
+      p.add(leg);
+      var shoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.13, 0.28), blk);
+      shoe.position.set(x, -0.825, 0);
+      p.add(shoe);
+    });
+
+    [-0.38, 0.38].forEach(function(x) {
+      var arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.38, 0.22), orange);
+      arm.position.set(x, 0.07, 0);
+      p.add(arm);
+    });
+
+    p.position.set(px, 0.43, 0);   // lift pivot up to the rod height
+    p.rotation.x = -0.3;           // gentle forward kicking lean
+    g.add(p);
+  }
+
+  [-1.7, 0, 1.7].forEach(makePlayer);
+
+  // soccer ball in front of the players, at foot level
+  var white = lm(0xF5F5F5);
+  var R = 0.32;
+  var ballGrp = new THREE.Group();
+  ballGrp.position.set(0, -0.42, 0.95);
+  ballGrp.add(new THREE.Mesh(new THREE.SphereGeometry(R, 16, 12), white));
+  var phi = 1.618;
+  var pent = [[0,1,phi],[0,1,-phi],[0,-1,phi],[0,-1,-phi],
+              [1,phi,0],[1,-phi,0],[-1,phi,0],[-1,-phi,0],
+              [phi,0,1],[phi,0,-1],[-phi,0,1],[-phi,0,-1]];
+  pent.forEach(function(d){
+    var n = new THREE.Vector3(d[0], d[1], d[2]).normalize();
+    var spot = new THREE.Mesh(new THREE.CircleGeometry(0.115, 5), blk);
+    spot.position.copy(n.clone().multiplyScalar(R * 1.01));
+    spot.lookAt(n.clone().multiplyScalar(R * 3));
+    ballGrp.add(spot);
+  });
+  g.add(ballGrp);
+
+  scene.add(g);
+
+  var isDragging = false;
+  var prevX = 0, prevY = 0;
+  var rotY = 0, rotX = 0;
+
+  function onDragStart(x, y) { isDragging = true; prevX = x; prevY = y; }
+  function onDragMove(x, y) {
+    if (!isDragging) return;
+    rotY += (x - prevX) * 0.018;
+    rotX += (y - prevY) * 0.013;
+    prevX = x; prevY = y;
+  }
+  function onDragEnd() { isDragging = false; }
+
+  canvas.style.cursor = 'grab';
+  canvas.addEventListener('mousedown',  function(e){ canvas.style.cursor='grabbing'; onDragStart(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove',  function(e){ onDragMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup',    function(){ canvas.style.cursor='grab'; onDragEnd(); });
+  canvas.addEventListener('touchstart', function(e){ onDragStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, {passive:false});
+  window.addEventListener('touchmove',  function(e){ if(isDragging){ onDragMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, {passive:false});
+  window.addEventListener('touchend',   onDragEnd);
+
+  (function tick() {
+    requestAnimationFrame(tick);
+    if (!isDragging) rotY += 0.008;
+    g.rotation.y = rotY;
+    g.rotation.x = rotX;
+    renderer.render(scene, camera);
+  })();
+}
+
+/* ════ 3. CLASH ROYALE CROWN ════ */
+function initCrown() {
+  var canvas = document.getElementById('crown-canvas');
+  if (!canvas) return;
+  var container = canvas.parentElement;
+  var W = container.clientWidth  || 280;
+  var H = container.clientHeight || 130;
+  if (W < 10 || H < 10) { setTimeout(initCrown, 80); return; }
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 50);
+  camera.position.set(0, 0.15, 6);
+  camera.lookAt(0, 0, 0);
+
+  var renderer = mkRenderer(canvas, W, H, 0.44);
+  hlLights(scene);
+
+  var shape = new THREE.Shape();
+  shape.moveTo(-1.3, -0.45);
+  shape.lineTo(-1.3,  0.55);
+  shape.lineTo(-0.72, 0.10);
+  shape.lineTo(-0.36, 0.92);
+  shape.lineTo( 0,    0.28);
+  shape.lineTo( 0.36, 0.92);
+  shape.lineTo( 0.72, 0.10);
+  shape.lineTo( 1.3,  0.55);
+  shape.lineTo( 1.3, -0.45);
+  shape.closePath();
+
+  var crownGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.48, bevelEnabled: false });
+  var crownMat = lm(0xFFAA00);
+  var crown = new THREE.Mesh(crownGeo, crownMat);
+
+  var gemMat = lm(0xFF4500);
+  var group = new THREE.Group();
+  group.add(crown);
+
+  [-0.7, 0, 0.7].forEach(function(x) {
+    var gem = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.22), gemMat);
+    gem.position.set(x, -0.22, 0.5);
+    group.add(gem);
+  });
+
+  var pivot = new THREE.Group();
+  pivot.add(group);
+  group.position.set(0, -0.22, -0.24);
+  scene.add(pivot);
+
+  var isDragging = false;
+  var prevX = 0, prevY = 0;
+  var rotY = 0, rotX = 0;
+
+  function onDragStart(x, y) { isDragging = true; prevX = x; prevY = y; }
+  function onDragMove(x, y) {
+    if (!isDragging) return;
+    rotY += (x - prevX) * 0.018;
+    rotX += (y - prevY) * 0.013;
+    prevX = x; prevY = y;
+  }
+  function onDragEnd() { isDragging = false; }
+
+  canvas.style.cursor = 'grab';
+  canvas.addEventListener('mousedown',  function(e){ canvas.style.cursor='grabbing'; onDragStart(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove',  function(e){ onDragMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup',    function(){ canvas.style.cursor='grab'; onDragEnd(); });
+  canvas.addEventListener('touchstart', function(e){ onDragStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, {passive:false});
+  window.addEventListener('touchmove',  function(e){ if(isDragging){ onDragMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, {passive:false});
+  window.addEventListener('touchend',   onDragEnd);
+
+  var t = 0;
+  (function tick() {
+    requestAnimationFrame(tick);
+    t += 0.012;
+    if (!isDragging) rotY += 0.012;
+    pivot.rotation.y = rotY;
+    pivot.rotation.x = rotX;
+    pivot.position.y = Math.sin(t * 0.75) * 0.07;
+    renderer.render(scene, camera);
+  })();
+}
+
+/* ════ HKUST RED BIRD SCULPTURE (STL) ════ */
+// Load the STL once, cache the centered geometry on window.__redBirdGeo,
+// and run any queued callbacks. Safe to call multiple times.
+function loadRedBirdGeometry(cb) {
+  if (window.__redBirdGeo) { if (cb) cb(window.__redBirdGeo); return; }
+  window.__redBirdCbs = window.__redBirdCbs || [];
+  if (cb) window.__redBirdCbs.push(cb);
+  if (window.__redBirdLoading) return;
+  window.__redBirdLoading = true;
+  new THREE.STLLoader().load(
+    'https://raw.githubusercontent.com/HKFoggyU/RedBird3D/master/redbird2Print.stl',
+    function(geometry) {
+      geometry.center();
+      geometry.computeBoundingBox();
+      window.__redBirdGeo = geometry;
+      (window.__redBirdCbs || []).forEach(function(fn) { fn(geometry); });
+      window.__redBirdCbs = [];
+    }
+  );
+}
+
+function initRedBird() {
+  var canvas = document.getElementById('bird-canvas');
+  if (!canvas) { setTimeout(initRedBird, 80); return; }
+  var W = 88, H = 88;          // small square mark beside the HKUST(GZ) title
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 1000);
+  camera.position.set(0, 1.5, 12);
+  camera.lookAt(0, 0, 0);
+
+  var renderer = mkRenderer(canvas, W, H, 0.5);   // low render scale → chunky pixel-art look
+  var upL = new THREE.SpotLight(0xeeeeff, 8.0, 15, 0.45, 0.3);
+  upL.position.set(0, -5, 0);
+  upL.target.position.set(0, 0, 0);
+  scene.add(upL.target);
+  scene.add(upL);
+  var key = new THREE.DirectionalLight(0xffffff, 1.2);
+  key.position.set(-2, 3, 2);
+  scene.add(key);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+
+  var pivot = new THREE.Group();
+  scene.add(pivot);
+  var sculpture = new THREE.Group();
+  pivot.add(sculpture);
+
+  function addBird(geometry) {
+    var size = new THREE.Vector3();
+    geometry.boundingBox.getSize(size);
+    var maxDim = Math.max(size.x, size.y, size.z);
+    var mat  = new THREE.MeshLambertMaterial({ color: 0xC1272D, flatShading: true });
+    var mesh = new THREE.Mesh(geometry, mat);
+    mesh.scale.setScalar(6 / maxDim);
+    mesh.rotation.x = -Math.PI / 2;
+    sculpture.add(mesh);
+  }
+  if (window.__redBirdGeo) {
+    // geometry already preloaded on page load → build instantly, no network wait
+    addBird(window.__redBirdGeo);
+  } else {
+    loadRedBirdGeometry(function(geometry) { addBird(geometry); });
+  }
+
+  var tiltZ = 0.0, tiltX = 0.0;
+  pivot.rotation.z = tiltZ;
+
+  var isDragging = false, prevX = 0, prevY = 0, t = 0;
+  function onDragStart(x, y) { isDragging = true; prevX = x; prevY = y; }
+  function onDragMove(x, y) {
+    if (!isDragging) return;
+    var rect  = canvas.getBoundingClientRect();
+    var midY  = rect.top + rect.height * 0.5;
+    var zSign = (prevY < midY) ? -1 : 1;
+    tiltZ += zSign * (x - prevX) * 0.013;
+    tiltX += (y - prevY) * 0.013;
+    prevX = x; prevY = y;
+  }
+  function onDragEnd() { isDragging = false; }
+
+  canvas.addEventListener('mousedown',  function(e) { onDragStart(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove',  function(e) { onDragMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup',    onDragEnd);
+  canvas.addEventListener('touchstart', function(e) { onDragStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+  window.addEventListener('touchmove',  function(e) { if (isDragging) { onDragMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+  window.addEventListener('touchend',   onDragEnd);
+
+  (function tick() {
+    requestAnimationFrame(tick);
+    t += 0.011;
+    sculpture.rotation.y = t;
+    pivot.rotation.z = tiltZ;
+    pivot.rotation.x = tiltX;
+    pivot.position.y = Math.sin(t * 0.65) * 0.09;
+    renderer.render(scene, camera);
+  })();
+}
+
+/* ════ SCROLL REVEAL ════ */
+(function() {
+  var io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (!e.isIntersecting) return;
+      var siblings = Array.from(e.target.parentElement.querySelectorAll('.reveal'));
+      var idx = siblings.indexOf(e.target);
+      setTimeout(function() { e.target.classList.add('in'); }, idx * 85);
+      io.unobserve(e.target);
+    });
+  }, { threshold: 0.1 });
+  // Only observe elements in the home page (always visible)
+  document.querySelectorAll('#page-home .reveal').forEach(function(el) { io.observe(el); });
+})();
+
+/* ════ RESUME SCROLL DATA ════ */
+(function(){
+  var SD = {
+    edu:{
+      badge:'Education',title:'HKUST(GZ)',
+      period:'B.S. Artificial Intelligence · Sep 2023 – Jun 2027',
+      desc:'Guangzhou, China. One of the leading AI-focused universities in Asia.',
+      bullets:['Red Bird Scholarship — highest institutional scholarship at HKUST(GZ)','Sole recipient of the entire 2023 cohort'],
+      tags:['Artificial Intelligence','Red Bird Scholar','Guangzhou']
+    },
+    dial:{
+      badge:'Research Experience',title:'DIAL Laboratory',
+      period:'Undergraduate Researcher · May 2025 – Present',
+      desc:'Supervised by Prof. Yuyu Luo at HKUST(GZ). Web environment synthesis, multimodal benchmarking, AI agent systems.',
+      bullets:[
+        'UI2App (NeurIPS 2026): LLM-as-Judge annotation pipeline with agent-based data collection and rule-based fallback',
+        'AutoWebWorld (ICML 2026): Automated evaluation framework for autonomous web agents across FSM-synthesized environments',
+        'Pipeline LLM: Fine-tuned GPT-4o via SFT on materials science data — improved QA accuracy 75% → 83%'
+      ],
+      tags:['Web Agent','Multimodal','LLM','Benchmark']
+    },
+    rmpc:{
+      badge:'Research Experience',title:'RMPC Lab',
+      period:'Research Assistant · Jun 2026 – Present',
+      desc:'Robot Motion Planning and Control Lab supervised by Prof. Jun Ma at HKUST(GZ). Legged robots and autonomous systems in complex environments.',
+      bullets:['Universal and Efficient Online Reinforcement Learning for Quadruped Locomotion'],
+      tags:['Quadruped','Reinforcement Learning','Robotics','Locomotion']
+    },
+    quadruped:{
+      badge:'Project · FYP',title:'Quadruped RL',
+      period:'Isaac Sim · SAC · Reinforcement Learning · Python',
+      desc:'Universal and efficient online reinforcement learning for quadruped locomotion at RMPC Lab, supervised by Prof. Jun Ma.',
+      bullets:[
+        'Enabling legged robots to adapt and move robustly across complex terrains in real time',
+        'Online RL framework targeting sample efficiency and generalization without pre-training on fixed terrain sets'
+      ],
+      tags:['Isaac Sim','SAC','RL','Robotics','Locomotion'],
+      navTo:'work', navLabel:'All Projects →'
+    },
+    drugraph:{
+      badge:'Project',title:'TW-DrugGraph',
+      period:'Neo4j · Qdrant · BGE-M3 · Python',
+      desc:'Bilingual drug-drug interaction QA system built on DrugBank 6.0.',
+      bullets:[
+        'Compared GraphRAG (Neo4j + Cypher) vs. Flat RAG (Qdrant + BGE-M3) on multi-hop reasoning tasks',
+        'Constructed a 500-question tiered benchmark (1/2/3-hop) to quantify whether structural retrieval advantage scales with reasoning depth'
+      ],
+      tags:['GraphRAG','Neo4j','Qdrant','BGE-M3'],
+      navTo:'work', navLabel:'All Projects →'
+    },
+    zson:{
+      badge:'Project',title:'ZSON + SG-Navigation',
+      period:'Habitat · LLaMA 3.2 Vision · CLIP · HM3D',
+      desc:'Zero-shot indoor object navigation with memory-augmented agent design.',
+      bullets:[
+        'Identified core bottleneck: LLM-driven decisions lacked memory and feedback — inconsistent behavior across scenes',
+        'Designed agent framework with memory modules, action analysis, and floor-level context injection',
+        'Improved success rate from 36% → 40% on HM3D dataset using LLaMA 3.2 Vision'
+      ],
+      tags:['Embodied AI','Navigation','LLaMA 3.2','CLIP'],
+      navTo:'work', navLabel:'All Projects →'
+    },
+    muzero:{
+      badge:'Project',title:'MuZero Chess Agent',
+      period:'PyTorch · MCTS · Reinforcement Learning',
+      desc:'MuZero architecture for chess self-play with planning depth analysis.',
+      bullets:[
+        'Replicated MuZero — representation, dynamics, and prediction networks',
+        'Analyzed design rationale: learned world models vs. model-free RL approaches',
+        'Quantified planning depth vs. performance trade-offs through lookahead search analysis'
+      ],
+      tags:['PyTorch','MCTS','World Models','RL'],
+      navTo:'work', navLabel:'All Projects →'
+    },
+    autowebworld:{
+      badge:'ICML 2026 · Accepted',title:'AutoWebWorld',
+      period:'',
+      desc:'Synthesizing Infinite Verifiable Web Environments via Finite State Machines.',
+      bullets:[
+        'Yifan Wu, Yiran Peng, ..., <strong>Yenchi Tseng</strong>, ..., Yuyu Luo',
+        'Built automated evaluation framework for autonomous web agents across synthesized FSM environments'
+      ],
+      tags:['Web Agent','FSM','Benchmark','ICML'],
+      link:{text:'arXiv ↗',url:'https://arxiv.org/abs/2602.14296'},
+      navTo:'papers', navLabel:'All Papers →'
+    },
+    ui2app:{
+      badge:'NeurIPS 2026 · Under Review',title:'UI2App',
+      period:'',
+      desc:'Benchmarking Visual Interaction Inference in Executable Web Application Generation.',
+      bullets:[
+        'Man Chen, Litao Guo, ..., <strong>Yenchi Tseng</strong>, ..., Ying-Cong Chen',
+        'Designed LLM-as-Judge annotation pipeline; surfaced accuracy limitations of current LLMs on visual UI tasks'
+      ],
+      tags:['Visual UI','Benchmark','LLM Eval','NeurIPS'],
+      navTo:'papers', navLabel:'All Papers →'
+    },
+    chart:{
+      badge:'ACL ARR 2026 · Under Review',title:'Text-to-Chart',
+      period:'',
+      desc:'Boosting Text-to-Chart Retrieval through Training with Synthesized Semantic Insights.',
+      bullets:['Yifan Wu, Lutao Yan, ..., <strong>Yenchi Tseng</strong>, ..., Yuyu Luo'],
+      tags:['Chart','Retrieval','NLP','ACL'],
+      link:{text:'arXiv ↗',url:'https://arxiv.org/abs/2505.10043'},
+      navTo:'papers', navLabel:'All Papers →'
+    }
+  };
+
+  function render(key){
+    var d=SD[key]; if(!d) return;
+    var inner=document.querySelector('#sc-detail .sc-detail-inner');
+    var html='';
+    html+='<p class="sc-d-badge">'+d.badge+'</p>';
+    if(key==='edu'){
+      // Title + small red-bird mark side by side
+      html+='<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.35rem">'
+          +'<h3 class="sc-d-title" style="margin-bottom:0">'+d.title+'</h3>'
+          +'<canvas id="bird-canvas" style="width:88px;height:88px;flex-shrink:0;background:transparent;image-rendering:pixelated;image-rendering:crisp-edges;transform:translate(-8px,-10px)"></canvas>'
+          +'</div>';
+    } else {
+      html+='<h3 class="sc-d-title">'+d.title+'</h3>';
+    }
+    html+=(d.period?'<p class="sc-d-period">'+d.period+'</p>':'')
+      +'<p class="sc-d-desc">'+d.desc+'</p>';
+    if(d.bullets&&d.bullets.length){
+      html+='<ul class="sc-d-bullets">'+d.bullets.map(function(b){return'<li>'+b+'</li>';}).join('')+'</ul>';
+    }
+    if(d.tags&&d.tags.length){
+      html+='<div class="sc-d-tags">'+d.tags.map(function(t){return'<span class="sc-d-tag">'+t+'</span>';}).join('')+'</div>';
+    }
+    // links row: arXiv link + page navigation button
+    html+='<div class="sc-d-links-row">';
+    if(d.link){
+      html+='<a href="'+d.link.url+'" target="_blank" class="sc-d-link">'+d.link.text+'</a>';
+    }
+    if(d.navTo){
+      html+='<button class="sc-d-navlink" onclick="showPage(\''+d.navTo+'\')">'+d.navLabel+'</button>';
+    }
+    html+='</div>';
+
+    inner.innerHTML=html;
+    if(key==='edu'){ setTimeout(initRedBird, 60); }
+    var layout=document.getElementById('scroll-layout');
+    if(!layout.classList.contains('expanded')){
+      // Temporarily disable scroll-snap to prevent browser re-snapping
+      // to #hero during the layout expansion transition (first click only)
+      document.documentElement.style.scrollSnapType='none';
+      layout.classList.add('expanded');
+      setTimeout(function(){ document.documentElement.style.scrollSnapType=''; }, 650);
+    } else {
+      layout.classList.add('expanded');
+    }
+  }
+
+  function collapse(){
+    document.querySelectorAll('.sc-entry').forEach(function(e){e.classList.remove('active');});
+    var inner=document.querySelector('#sc-detail .sc-detail-inner');
+    if(inner) inner.innerHTML='';
+    var layout=document.getElementById('scroll-layout');
+    document.documentElement.style.scrollSnapType='none';
+    layout.classList.remove('expanded');
+    setTimeout(function(){ document.documentElement.style.scrollSnapType=''; }, 650);
+  }
+  // expose so the scroll-driven unroll can auto-collapse the detail when the scroll rolls back up
+  window.__scResumeCollapse = collapse;
+
+  document.querySelectorAll('.sc-entry').forEach(function(el){
+    el.addEventListener('click',function(){
+      if(el.classList.contains('active')){
+        collapse();
+      } else {
+        document.querySelectorAll('.sc-entry').forEach(function(e){e.classList.remove('active');});
+        el.classList.add('active');
+        render(el.dataset.key);
+      }
+    });
+  });
+})();
+
+/* ════ INIT ON LOAD ════ */
+window.addEventListener('DOMContentLoaded', function() {
+  initChess();
+  initFoosball();
+  initCrown();
+  loadRedBirdGeometry();   // preload the red-bird STL up front, like the other models
+
+  // ── Scroll-driven unroll for the résumé scroll (卷軸) ──
+  // Closed when not yet in view; unrolls top→down as the user scrolls toward it.
+  var scSection   = document.getElementById('scroll-resume');
+  var scWidget    = document.querySelector('#scroll-resume .sc-scroll-col');
+  var scBody      = document.querySelector('#scroll-resume .sc-body');
+  var scBotRoller = document.querySelector('#scroll-resume .sc-roller-bottom');
+  var scLayout    = document.getElementById('scroll-layout');
+  var START_FRAC  = 0.75; // stay closed until the scroll's center reaches ~3/4 down the screen
+  var unrollTicking = false;
+  var lastStage = -1;     // tracks current unroll stage (0 / 0.5 / 1) so transitions only fire on change
+  function applyUnroll() {
+    unrollTicking = false;
+    if (!scBody || !scSection || !scWidget) return;
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var sTop = scSection.getBoundingClientRect().top;        // section top vs viewport (vh → 0 as you scroll down)
+    var wRect = scWidget.getBoundingClientRect();
+    var centerOffset = (wRect.top + wRect.height / 2) - sTop; // scroll-center offset within the section (constant)
+    // section-top value at which the scroll's center crosses the START_FRAC line
+    var startTop = START_FRAC * vh - centerOffset;
+    // Closed until the scroll reaches that line; then ramp to fully open exactly
+    // when the section settles at the top (page scrolled to the bottom).
+    var p = startTop > 0 ? (startTop - sTop) / startTop : (vh - sTop) / vh;
+    p = Math.max(0, Math.min(1, p));
+    // Quantize the continuous progress into 3 stages: closed (0) / half (0.5) / open (1).
+    // CSS transitions glide smoothly between them. Open only triggers near the bottom,
+    // so it finishes unrolling as the section settles into view.
+    var stage = p <= 0 ? 0 : (p >= 0.85 ? 1 : 0.5);
+    // If not fully open while a detail is showing, retract the left-hand text
+    // and return the scroll to its centered position.
+    if (stage < 1 && scLayout && scLayout.classList.contains('expanded') && window.__scResumeCollapse) {
+      window.__scResumeCollapse();
+    }
+    if (stage === lastStage) return;
+    lastStage = stage;
+    var hidden = (1 - stage) * 100;
+    scBody.style.clipPath = 'inset(0 0 ' + hidden + '% 0)';
+    scBody.style.webkitClipPath = 'inset(0 0 ' + hidden + '% 0)';
+    if (scBotRoller) {
+      var bh = scBody.offsetHeight;
+      scBotRoller.style.transform = 'translateY(' + (-(1 - stage) * bh) + 'px)';
+    }
+  }
+  function requestUnroll() {
+    if (unrollTicking) return;
+    unrollTicking = true;
+    requestAnimationFrame(applyUnroll);
+  }
+  window.addEventListener('resize', requestUnroll, { passive: true });
+  requestUnroll();
+
+  // Gentle scroll snap for #page-home
+  var homeEl = document.getElementById('page-home');
+  var snapSections = ['hero','about','experience','scroll-resume'];
+  var snapTimer = null;
+  var isSnapping = false;
+
+  homeEl.addEventListener('scroll', function() {
+    requestUnroll();
+    if (isSnapping) return;
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(function() {
+      var scrollTop = homeEl.scrollTop;
+      var vh = homeEl.clientHeight;
+      var threshold = vh * 0.15; // only snap if within 15% of a section top
+
+      var best = null;
+      var bestDist = Infinity;
+      snapSections.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var top = el.offsetTop;
+        var dist = Math.abs(scrollTop - top);
+        if (dist < bestDist) { bestDist = dist; best = top; }
+      });
+
+      if (best !== null && bestDist < threshold && bestDist > 2) {
+        isSnapping = true;
+        homeEl.scrollTo({ top: best, behavior: 'smooth' });
+        setTimeout(function() { isSnapping = false; }, 600);
+      }
+    }, 120);
+  }, { passive: true });
+});
+</script>
+</body>
+</html>
