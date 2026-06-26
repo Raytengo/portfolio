@@ -1233,6 +1233,9 @@ footer{
             <div class="sc-entry" data-key="drugraph">
               <span class="sc-bullet">▸</span>TW-DrugGraph
             </div>
+            <div class="sc-entry" data-key="bioguard">
+              <span class="sc-bullet">▸</span>BioGuard AR
+            </div>
 
             <p class="sc-cat">// Publications</p>
             <div class="sc-entry" data-key="autowebworld">
@@ -1268,7 +1271,7 @@ footer{
           <p class="s-label">// 02 — Work</p>
           <h2 class="s-title">Projects &amp;<br>Products</h2>
         </div>
-        <span class="work-count">05 Selected Works</span>
+        <span class="work-count">06 Selected Works</span>
       </div>
 
       <div class="work-grid">
@@ -1371,6 +1374,26 @@ footer{
           </div>
           <div class="work-footer">
             <span class="work-status">Completed</span>
+          </div>
+        </div>
+
+        <div class="work-card reveal">
+          <div class="work-card-top">
+            <p class="work-num">006</p>
+            <span class="work-type-badge">Product · AR/Bio</span>
+          </div>
+          <h3 class="work-title">BioGuard AR</h3>
+          <div class="work-divider"></div>
+          <p class="work-desc">Smart AR glasses for biology lab education. Computer vision tracks the current experiment step in real time, flags hazard level of reagents and procedures, and overlays step-by-step guidance — giving students hands-free safety assistance in teaching labs.</p>
+          <div class="work-tags">
+            <span class="work-tag">AR</span>
+            <span class="work-tag">Computer Vision</span>
+            <span class="work-tag">LLM</span>
+            <span class="work-tag">Bio Safety</span>
+            <span class="work-tag">Wearable</span>
+          </div>
+          <div class="work-footer">
+            <span class="work-status">In Development</span>
           </div>
         </div>
 
@@ -2130,6 +2153,18 @@ function initRedBird() {
         'Constructed a 500-question tiered benchmark (1/2/3-hop) to quantify whether structural retrieval advantage scales with reasoning depth'
       ],
       tags:['GraphRAG','Neo4j','Qdrant','BGE-M3'],
+      navTo:'work', navLabel:'All Projects →'
+    },
+    bioguard:{
+      badge:'Product · AR/Bio',title:'BioGuard AR',
+      period:'Computer Vision · LLM · AR · In Development',
+      desc:'Smart AR glasses for biology lab teaching environments, currently in R&D.',
+      bullets:[
+        'Computer vision recognizes the current experiment step in real time from the wearer\'s point of view',
+        'Flags hazard level of reagents and procedures and overlays step-by-step safety guidance directly in the user\'s field of view',
+        'Combines AI, biology domain knowledge, and AR to give students hands-free assistance in teaching labs'
+      ],
+      tags:['AR','Computer Vision','LLM','Bio Safety','Wearable'],
       navTo:'work', navLabel:'All Projects →'
     },
     zson:{
